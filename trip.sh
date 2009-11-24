@@ -19,6 +19,10 @@
 # License along with dpkg; if not, write to the Free Software
 # Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
+# Thanks to :
+#  - Stef Bon, for the idea on re-mounting /tmp inside the chroot, in order to automatically exlude temporary files
+#  - Robert Dvoracek, for the improved wizard tar.gz recognition pattern, and bug report
+
 # :set ts=2 sw=2 nu et si
 
 trap clean 2 15
@@ -26,7 +30,7 @@ trap clean 2 15
 # some mandatory default values
 TRIP_CONFIG_DIR=${TRIP_CONFIG_DIR:-/etc/trip}
 if [ ! -d "$TRIP_CONFIG_DIR" ]; then
-    echo WTF IS WRONG $TRIP_CONFIG_DIR
+    trace 3 "\$TRIP_CONFIG_DIR not set, it is now $TRIP_CONFIG_DIR"
   TRIP_CONFIG_DIR=/trip/conf
 fi
 
@@ -41,6 +45,7 @@ function clean {
   umount "$TRIP_FS_UNION"/dev/pts 2> /dev/null
   umount "$TRIP_FS_UNION"/dev 2> /dev/null
   umount "$TRIP_FS_UNION" 2> /dev/null
+  umount "$TRIP_FS_PKG" 2> /dev/null
 }
 
 
@@ -60,7 +65,7 @@ function trace {
 # do what it's name say
 function usage {
   verbose_level=3
-  trace 3 "Trip, a Trivial Package manager, using Unionfs. You are using version 0.3"
+  trace 3 "Trip, a Trivial Package manager, using Unionfs. You are using version pre-0.4"
   trace 3 "usage : trip -i,   --install <binary package file> [--no-conflict]"
   trace 3 "                   (install from a pre-built binary package)"
   trace 3 "             -u,   --uninstall <package name>"
@@ -117,10 +122,9 @@ function build_chroot {
   source "$src_dir/support/identification"
 
   # give a default values for meta data
-  [ -z "$TRIP_RELEASE" ] && TRIP_RELEASE=1
   [ -z "$TRIP_ARCH" ] && TRIP_ARCH=`uname -m`
 
-  export TRIP_NAME TRIP_VERSION TRIP_RELEASE TRIP_ARCH
+  export TRIP_NAME TRIP_VERSION TRIP_ARCH
 
   # create a temporary build directory
   tmp_build_dir=`pseudo_mktemp -d "build_dir"`
@@ -185,7 +189,6 @@ function build {
   trace 3 "reading package identification"
   source "$src_dir/support/identification"
 
-  [ -z "$TRIP_RELEASE" ] && TRIP_RELEASE=1
   [ -z "$TRIP_ARCH" ] && TRIP_ARCH=`uname -m`
 
   if [ -z "$TRIP_NAME" ]; then
@@ -200,6 +203,11 @@ function build {
   trace 3 "we are about to build $TRIP_NAME-$TRIP_VERSION for $TRIP_ARCH"
 
   # clean the package filesystem before to begin install
+  $TRIP_FS_PKG_MOUNT
+  if [ $? != 0 ]; then
+    trace 1 "unable to mount the package filesystem"
+    return 1
+  fi
   trace 3 "cleaning package filesystem before to build"
   if [ -z "$TRIP_FS_PKG" ]; then
     trace 1 "check the TRIP_FS_PKG variable : it is empty !"
@@ -207,27 +215,36 @@ function build {
     rm -rf "$TRIP_FS_PKG"/*
   fi
 
+  # make a local copy of the package
+  trace 3 "copying source package"
+  rm -rf "$TRIP_TMPDIR/trip-pkg"
+  cp -dpR "$src_dir" "$TRIP_TMPDIR/trip-pkg"
 
-  # mount temporary filesystems
-  mount "$TRIP_FS_UNION"
+
+  # mount the layered filesystem
+  trace 3 "mounting filesystems"
+  $TRIP_FS_UNION_MOUNT
   if [ $? != 0 ]; then
     trace 1 "unable to mount the union filesystem"
+    umount "$TRIP_FS_PKG"
     return 1
   fi
-  mount --bind /dev "$TRIP_FS_UNION/dev"
-  mount -t devpts devpts "$TRIP_FS_UNION/dev/pts"
-  mount -t tmpfs shm "$TRIP_FS_UNION/dev/shm"
-  mount -t proc proc "$TRIP_FS_UNION/proc"
-  mount -t sysfs sysfs "$TRIP_FS_UNION/sys"
+  # mount other filesystems
+  mount -n --bind /dev "$TRIP_FS_UNION/dev"
+  mount -n -t devpts devpts "$TRIP_FS_UNION/dev/pts"
+  mount -n -t tmpfs shm "$TRIP_FS_UNION/dev/shm"
+  mount -n -t proc proc "$TRIP_FS_UNION/proc"
+  mount -n -t sysfs sysfs "$TRIP_FS_UNION/sys"
 
   # remounting the tmp directory via bind avoid to filter files in this directory (idea from Stef Bon)
-  mount --bind "$TRIP_TMPDIR" "$TRIP_FS_UNION$TRIP_TMPDIR"
+  mount -n --bind "$TRIP_TMPDIR" "$TRIP_FS_UNION$TRIP_TMPDIR"
 
   # go into the chroot jail
+  trace 3 "chroot into the union filesystem"
   if [ "$TRIP_MODE" = "hosted" ]; then
-    chroot "$TRIP_FS_UNION" /tools/bin/env -i HOME=/root TERM="$TERM" PS1='\u:\w\$ ' PATH=/bin:/usr/bin:/sbin:/usr/sbin:/tools/bin /tools/bin/bash --login +h -c "$TRIP_PATH --build_chroot '$src_dir' --config-dir '$config_dir'"
+    chroot "$TRIP_FS_UNION" /tools/bin/env -i HOME=/root TERM="$TERM" PS1='\u:\w\$ ' PATH=/bin:/usr/bin:/sbin:/usr/sbin:/tools/bin /tools/bin/bash --login +h -c "$TRIP_PATH --verbose-level $verbose_level --build_chroot '$TRIP_TMPDIR/trip-pkg' --config-dir '$config_dir'"
   else
-    chroot "$TRIP_FS_UNION" /bin/bash -c "$TRIP_PATH --build_chroot '$src_dir' --config-dir '$config_dir'"
+    chroot "$TRIP_FS_UNION" /bin/bash -c "$TRIP_PATH --verbose-level $verbose_level --build_chroot '$TRIP_TMPDIR/trip-pkg' --config-dir '$config_dir'"
   fi
 
   ret=$?
@@ -244,8 +261,12 @@ function build {
   # test the exit status of chroot
   if [ $ret != 0 ]; then
     trace 1 "build failed"
+    umount "$TRIP_FS_PKG" 2> /dev/null
     return 1
   fi
+
+  # remove the local copy of the package
+  rm -rf "$TRIP_TMPDIR/trip-pkg"
   
   # list deleted, modified and added files
   trace 3 "examining installed files"
@@ -277,31 +298,90 @@ function build {
     cat "$src_dir/support/include" >> "$tmp_pkg_files"
   fi
 
+  cat "$tmp_pkg_files" | sort > "$tmp_pkg_files.sort"
+  mv "$tmp_pkg_files.sort" "$tmp_pkg_files"
+
+  # build the binary packages, these filters may not be ok for all packages
+  build_package "$tmp_pkg_files" "-lib" -regex "\./usr/lib/.*\.so.*" -o -regex "\./lib/.*\.so.*"
+
+  build_package "$tmp_pkg_files" "-dev" -regex "\./usr/lib/.*\.a" -o \
+                                        -regex "\./lib/.*\.a" -o \
+                                        -regex "\./usr/lib/.*\.la" -o \
+                                        -regex "\./lib/.*\.la" -o \
+                                        -regex "\./usr/include/.*" -o \
+                                        -regex "\./usr/lib/pkgconfig/.*"
+                                        
+  build_package "$tmp_pkg_files" "-doc" -regex "\./usr/share/doc/.*" -o \
+                                        -regex "\./usr/share/man/.*" -o \
+                                        -regex "\./usr/share/info/.*"
+
+  # TODO glibc package
+  [ -d "$TRIP_FS_PKG/usr/share/locale" ] && find "$TRIP_FS_PKG"/usr/share/locale -mindepth 1 -maxdepth 1 -printf "%f\n" |
+  ( while read locale; do
+      build_package "$tmp_pkg_files" "-locale-$locale" -regex "\./usr/share/locale/$locale.*"
+    done
+  )
+  
+  build_package "$tmp_pkg_files" ""
+
+  # finally unmount the package filesystem
+  umount "$TRIP_FS_PKG" 2> /dev/null
+}
+
+
+
+function build_package {
+  tmp_pkg_files="$1"
+  category="$2"
+  shift 2
+
+  # filter file names
+  tmp_pkg_files_category=`pseudo_mktemp -f "pkg_files.$category"`
+  ( cd "$TRIP_FS_PKG"; find ./ "$@" ) | cut -b3- | sort | join - "$tmp_pkg_files" > "$tmp_pkg_files_category"
+  if [ ! -s "$tmp_pkg_files_category" ]; then
+    rm -f "$tmp_pkg_files_category"
+    trace 3 "no file in package $TRIP_NAME$category"
+    return
+  fi
+
+  # update file list
+  cat "$tmp_pkg_files" "$tmp_pkg_files_category" | sort | uniq -u > "$tmp_pkg_files.tmp"
+  mv -f "$tmp_pkg_files.tmp" "$tmp_pkg_files"
+
+
   # create a temporary build directory
   tmp_pkg_build_dir=`pseudo_mktemp -d "pkg_build_dir"`
   if [ ! -d "$tmp_pkg_build_dir" ]
   then
-    trace 1 "unable to create a temporary build directory"
+    trace 1 "unable to create a temporary package build directory"
     return 1
   fi
 
-  # build the binary package
-  trace 3 "building the binary package"
-  pkg_name="$TRIP_NAME-$TRIP_VERSION-$TRIP_RELEASE.$TRIP_ARCH"
+  trace 3 "building the binary package $TRIP_NAME$category"
+  pkg_name="$TRIP_NAME$category-$TRIP_VERSION-$TRIP_ARCH"
   pkg_dir="$tmp_pkg_build_dir/$pkg_name"
   rm -rf "$pkg_dir"
   mkdir -p "$pkg_dir"
-  
-  tar --create --file="$pkg_dir/files.tar" --directory="$TRIP_FS_PKG" --no-recursion --files-from="$tmp_pkg_files"
+  tar --create --file="$pkg_dir/files.tar" --directory="$TRIP_FS_PKG" --no-recursion --files-from="$tmp_pkg_files_category"
   mkdir "$pkg_dir/support"
-  cp "$src_dir/support/identification" "$pkg_dir/support"
-  for f in "$src_dir/support/"{pre,post}_{,un}install.sh; do
-    [ -f "$f" ] && cp "$f" "$pkg_dir/support"
-  done
+  # update the name according to the category
+  sed 's/TRIP_NAME/TRIP_BASE_NAME/' "$src_dir/support/identification" > "$pkg_dir/support/identification"
+  echo "TRIP_NAME=\"$TRIP_NAME$category\"" >> "$pkg_dir/support/identification"
+  # update the ARCH with the value used for build
+  sed "/TRIP_ARCH/d" -i "$pkg_dir/support/identification"
+  echo "TRIP_ARCH=\"$TRIP_ARCH\"" >> "$pkg_dir/support/identification"
+  # copy support script files only for the main package
+  if [ -z "$category" ]; then
+    for f in "$src_dir/support/"{pre,post}_{,un}install.sh; do
+      [ -f "$f" ] && cp "$f" "$pkg_dir/support"
+    done
+  fi
 
   tar --create --directory="$tmp_pkg_build_dir" "$pkg_name" | gzip > "$pkg_name.tar.gz"
 
-  trace 3 "created binary package \"$pkg_name.tar.gz\""
+  trace 3 "binary package \"$pkg_name.tar.gz\" created"
+
+  rm -f "$tmp_pkg_files_category"
 }
 
 
@@ -395,17 +475,14 @@ function install {
 
   # extract then read package infos
   trace 3 "extracting meta data from the archive \"$1\""
-  pkg_name=`tar -tf "$bin_pkg" | head -n 1 | sed "s/\/$//"`
-
-  gzip -dc "$bin_pkg" | tar --extract --directory="$tmp_install_dir" "$pkg_name/support" 2> /dev/null
-
+  gzip -dc "$bin_pkg" | tar --wildcards --extract --directory="$tmp_install_dir" "*/support" 2> /dev/null
   if [ $? != 0 ]; then
     trace 1 "an error occured while extracting meta data from the archive"
     return 1
   fi
 
-  if [ -f "$tmp_install_dir/$pkg_name/support/identification" ]; then
-    source "$tmp_install_dir/$pkg_name/support/identification"
+  if [ -f "$tmp_install_dir/"*"/support/identification" ]; then
+    source "$tmp_install_dir/"*"/support/identification"
   else
     trace 1 "the archive does not look like a trip archive (no support/identification file)"
     return 1
@@ -421,14 +498,9 @@ function install {
     return 1
   fi
 
-  if [ -z "$TRIP_RELEASE" ]; then
-    trace 1 "the TRIP_RELEASE variable is not set"
-    return 1
-  fi
-
   [ -z "$TRIP_ARCH" ] && TRIP_ARCH=`uname -m`
 
-  pkg_name="$TRIP_NAME-$TRIP_VERSION-$TRIP_RELEASE.$TRIP_ARCH"
+  pkg_name="$TRIP_NAME-$TRIP_VERSION-$TRIP_ARCH"
 
   # check that the package is not already installed (same name-version-release-arch)
   db_entry="$TRIP_DB/$pkg_name"
@@ -685,37 +757,35 @@ function wizard {
   # build.sh
   tmp_build_script=`pseudo_mktemp -f "build_script"`
   cat > "$tmp_build_script" <<- EOF
-	#!/bin/sh
+	#!/bin/bash
+
+	shopt -s extglob
 
 	cd "\$TMP_BUILD_DIR/" &&
-	tar xf "\$SRC_DIR/src/\$TRIP_NAME-\$TRIP_VERSION.tar."[gb]z* &&
+	tar xf "\$SRC_DIR/src/\$TRIP_NAME-\$TRIP_VERSION".t?(ar?(\.))?(bz|gz|bz2) &&
 	cd "\$TRIP_NAME-\$TRIP_VERSION" &&
 	./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var &&
 	make
 	EOF
   chmod +x "$tmp_build_script"
 
-  date_1=`stat -c %Z "$tmp_build_script"`
   "$EDITOR" "$tmp_build_script"
-  date_2=`stat -c %Z "$tmp_build_script"`
-  if [ "$date_1" = "$date_2" ]; then
+  if [ ! -s "$tmp_build_script" ]; then
     rm -f "$tmp_build_script"
   fi
 
   # install.sh
   tmp_install_script=`pseudo_mktemp -f "install_script"`
   cat > "$tmp_install_script" <<- EOF
-	#!/bin/sh
+	#!/bin/bash
 
 	cd "\$TMP_BUILD_DIR/\$TRIP_NAME-\$TRIP_VERSION" &&
 	make install
 	EOF
   chmod +x "$tmp_install_script"
 
-  date_1=`stat -c %Z "$tmp_install_script"`
   "$EDITOR" "$tmp_install_script"
-  date_2=`stat -c %Z "$tmp_install_script"`
-  if [ "$date_1" = "$date_2" ]; then
+  if [ ! -s "$tmp_install_script" ]; then
     rm -f "$tmp_install_script"
   fi
 
@@ -725,7 +795,6 @@ function wizard {
   cat > "$name-$version/support/identification" <<- EOF
 	TRIP_NAME="$name"
 	TRIP_VERSION="$version"
-	TRIP_RELEASE=1
 	TRIP_URL="$url"
 	TRIP_DESCRIPTION="$description"
 	EOF
@@ -735,7 +804,11 @@ function wizard {
 
   i=0
   while [ "${files[$i]}" ]; do
-    [ -e "${files[$i]}" ] && cp -r "${files[$i]}" "$name-$version/src/"
+    if [ -e "${files[$i]}" ]; then
+      cp -r "${files[$i]}" "$name-$version/src/"
+    else
+      ( cd "$name-$version/src/" && wget "${files[$i]}" )
+    fi
     let i++
   done
 
@@ -775,7 +848,7 @@ function list {
     else
       if [ -f "$1" ]; then
         # argument is a file
-        gzip -dc "$1" | tar --extract --to-stdout "*files.tar" | tar --list $verbose
+        gzip -dc "$1" | tar --extract --to-stdout --wildcards "*files.tar" | tar --list $verbose
       else
         trace 1 "no such package \"$1\" (nor installed, neither a file)"
       fi
@@ -805,8 +878,13 @@ function batch_build_install {
   cat $1 |
   (
     while read pkg; do
-      "$TRIP_PATH" -b "$pkg" || exit 1
-      "$TRIP_PATH" $n -i "$pkg-"* || exit 1
+      "$TRIP_PATH" -c "$config_dir" -t "$TRIP_PATH" -v $verbose_level -b "$pkg" || exit 1
+      [ -d doc ] && mv *-doc-* doc
+      [ -d locale ] && mv *-locale-* locale
+      source "$pkg/support/identification"
+      for i in "$TRIP_NAME"-*; do
+        "$TRIP_PATH" $n -c "$config_dir" -t "$TRIP_PATH" -v $verbose_level -i $i || exit 1
+      done
     done
   )
 }
@@ -816,7 +894,7 @@ function batch_uninstall {
   cat $1 |
   (
     while read pkg; do
-      "$TRIP_PATH" -u "$pkg" || exit 1
+      "$TRIP_PATH" -c '$config_dir' -v $verbose_level -u "$pkg" || exit 1
     done
   )
 }
