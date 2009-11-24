@@ -1,0 +1,11 @@
+
+TRIP_NAME=testpkg
+
+TRIP_VERSION=1.0
+
+TRIP_RELEASE=ballbuster
+
+TRIP_URL="http://grencez.codelove.org/drop/${TRIP_NAME}-${TRIP_VERSION}.tar.gz"
+
+TRIP_DESCRIPTION="This package is so awesome, it will bust your balls."
+
