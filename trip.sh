@@ -44,8 +44,9 @@ function clean {
   umount "$TRIP_FS_UNION"/dev/shm 2> /dev/null
   umount "$TRIP_FS_UNION"/dev/pts 2> /dev/null
   umount "$TRIP_FS_UNION"/dev 2> /dev/null
-  umount "$TRIP_FS_UNION" 2> /dev/null
-  umount "$TRIP_FS_PKG" 2> /dev/null
+  ${TRIP_FS_UNION_UMOUNT} 2> /dev/null
+  ${TRIP_FS_PKG_UMOUNT} 2> /dev/null
+  ${TRIP_FS_ROOT_UMOUNT} 2> /dev/null
 }
 
 
@@ -201,6 +202,8 @@ function build {
   fi
 
   trace 3 "we are about to build $TRIP_NAME-$TRIP_VERSION for $TRIP_ARCH"
+
+  $TRIP_FS_ROOT_MOUNT
 
   # clean the package filesystem before to begin install
   $TRIP_FS_PKG_MOUNT
