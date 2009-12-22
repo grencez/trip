@@ -469,6 +469,13 @@ function install {
 
   trace 3 "installing $bin_pkg"
 
+  $TRIP_FS_ROOT_MOUNT
+  if [ ! $? ]
+  then
+      trace 1 "root mount failed!"
+      return 1
+  fi
+
   # need a temporary directory to extract package support files
   tmp_install_dir=`pseudo_mktemp -d "install_dir"`
   if [ ! -d "$tmp_install_dir" ]; then
@@ -626,6 +633,7 @@ function install {
   echo $pkg_name >> "$TRIP_DB/list"
   
   trace 3 "the package \"$pkg_name\" has been successfully installed"
+  $TRIP_FS_ROOT_UMOUNT
 }
 
 
@@ -633,6 +641,13 @@ function install {
 function uninstall {
   pkg_name="$1"
   db_entry="$TRIP_DB/$pkg_name"
+
+  $TRIP_FS_ROOT_MOUNT
+  if [ ! $? ]
+  then
+      trace 1 "cannot mount root!"
+      return 1
+  fi
 
   trace 3 "uninstalling $pkg_name"
 
@@ -692,6 +707,8 @@ function uninstall {
   trace 3 "removing the package from the database"
   rm -rf "$db_entry"
   sed "/$pkg_name/d" -i "$TRIP_DB/list"
+
+  $TRIP_FS_ROOT_UMOUNT
 }
 
 
@@ -701,6 +718,7 @@ function uninstall {
 # files are listed with a path relative to / ("usr/lib", not "/usr/lib")
 function remove_files {
   files="$1"
+  trace 3 "removing from $files"
   cat "$files" |
   (
     while read f; do
