@@ -26,12 +26,14 @@ default: $(EXEC)
 .PHONY: install
 install: $(EXEC)
 	chmod u=rx,g=rx,o=rx $(EXEC)
-	cp --preserve=mode $(EXEC) trip.sh $(INSTALL_BIN)
+	cp --preserve=mode $(EXEC) trip-skel.sh trip.sh $(INSTALL_BIN)
 
 
 .PHONY: uninstall
 uninstall:
-	rm -f $(INSTALL_BIN)/$(EXEC) $(TRIP_SH)
+	rm -f $(INSTALL_BIN)/$(EXEC) \
+		$(INSTALL_BIN)/trip-skel.sh \
+		$(TRIP_SH)
 
 .PHONY: testpkg
 testpkg:
