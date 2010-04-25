@@ -1,0 +1,49 @@
+
+Trip is GPLv2, see COPYING.
+
+Pierre Hebert is awesome for making trip.
+http//www.pierrox.net/trip/
+http://www.linuxfromscratch.org/hints/downloads/files/package_management_using_trip.txt
+
+
+This isn't really a proper fork, but I modified the TRIvial Package manager to
+work better for me.
+
+Here's how you install (also see NOTES below):
+$  sudo make install
+$  cp -r dot-trip ~/.trip
+
+Then, the quick way to install packages and such:
+$  trip-skel.sh <progname> <version>  <source>
+$  sudo trip -b <progname>-<version>
+$  sudo trip -i <progname>-<version>-<arch>.tar.gz
+
+For example, today I did this exactly:
+$  cd ~/packaging/apvlv
+$  trip-skel.sh apvlv 0.0.9.6 ~/dldir/apvlv-0.0.9.6.tar.gz
+Uninstall previous versions before building, else you won't get the files
+which overlap on install.
+$  sudo trip -u apvlv-0.0.9.5-x86_64
+$  sudo trip -u apvlv-doc-0.0.9.5-x86_64
+Build
+$  sudo trip -b apvlv-0.0.9.6
+Install
+$  sudo trip -i apvlv-0.0.9.6-x86_64.tar.gz
+$  sudo trip -i apvlv-doc-0.0.9.6-x86_64.tar.gz
+
+NOTES:
+Some things don't work. Simple stuff does, since I use this as a replacement
+  for stow. I'd like to fix some when summer (2010) hits.
+Your kernel must support unionfs or aufs.
+  With aufs though, you cannot have a file residing on the root partition to
+  mount via loopback to TRIP_FS_PKG. It's a useful technique on low memory
+  systems.
+The sample config (in dot-trip/conf, or ~/.trip/conf after installation)
+  mounts TRIP_FS_PKG as shared memory (like /dev/shm).
+  Since the package is actually installed to that mountpoint, if you don't
+  have much RAM, or are installing a proportionally large package, you may
+  want to change this.
+
+Please bug me, Alex Klinkhamer @ (com.gmail::grencez) about relevant stuff.
+Updates found at grencez.codelove.org
+

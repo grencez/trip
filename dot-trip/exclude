@@ -1,0 +1,6 @@
+^tmp$
+^tools
+^etc/mtab$
+^usr/share/info/dir$
+^etc/ld.so.cache$
+^var/cache/ldconfig/aux-cache$

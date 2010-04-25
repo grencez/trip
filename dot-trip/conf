@@ -1,0 +1,45 @@
+# TRIP configuration file
+# TRIP is a TRIvial Packager
+# copyright 2006-2007 Pierre Hebert <pierrox@pierrox.net>
+# http://www.pierrox.net/trip/
+
+
+# the real root filesystem, in which resides the operating system
+TRIP_FS_ROOT=/mnt/trip/lfs
+
+# the filesystem on which are temporarily created the files during the install phase
+TRIP_FS_PKG=/mnt/trip/pkg
+
+# the union filesystem mergin $TRIP_FS_ROOT(ro) and $TRIP_FS_PKG(rw)
+TRIP_FS_UNION=/mnt/trip/union
+
+# where to install binary packages
+TRIP_INSTALL_DIR=$TRIP_FS_ROOT
+
+# installed package db location
+TRIP_DB=/var/lib/trip
+
+# the mode tell if we use /tools or / as build environment (hosted = build from /tools, normal=/)
+TRIP_MODE=normal
+
+# the location of the trip shell script
+TRIP_PATH=/usr/bin/trip
+
+# root location of temporary files
+TRIP_TMPDIR=/tmp/trip
+
+# mount command for the TRIP_FS_ROOT filesystem
+#TRIP_FS_ROOT_MOUNT="mount -n $TRIP_FS_ROOT"
+TRIP_FS_ROOT_MOUNT="mount -nv --bind / $TRIP_FS_ROOT"
+TRIP_FS_ROOT_UMOUNT="umount $TRIP_FS_ROOT"
+
+# mount command for the TRIP_FS_PKG filesystem
+#TRIP_FS_PKG_MOUNT="mount -n $TRIP_FS_PKG"
+TRIP_FS_PKG_MOUNT="mount -nvt tmpfs shm $TRIP_FS_PKG"
+TRIP_FS_PKG_UMOUNT="umount $TRIP_FS_PKG"
+
+# mount command for the TRIP_FS_UNION filesystem
+#TRIP_FS_UNION_MOUNT="mount -n $TRIP_FS_UNION"
+TRIP_FS_UNION_MOUNT="mount -nvt unionfs -o dirs=$TRIP_FS_PKG:$TRIP_FS_ROOT=ro none $TRIP_FS_UNION"
+TRIP_FS_UNION_UMOUNT="umount $TRIP_FS_UNION"
+
