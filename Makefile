@@ -33,3 +33,7 @@ uninstall:
 clean:
 	rm -f $(OBJS) $(EXEC)
 
+.PHONY: tgz
+tgz:
+	git archive --prefix=trip/ master | gzip > ../trip.tgz
+
