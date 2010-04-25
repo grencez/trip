@@ -21,7 +21,7 @@ cat > build.sh << "EOF"
 #!/bin/sh
 
 cd "$TMP_BUILD_DIR/"
-rsync -rlptD --delete "$SRC_DIR/src/" "./"
+cp -rPpT "$SRC_DIR/src/" "./"
 ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var
 make -j3
 EOF
@@ -67,7 +67,7 @@ then
     fi
     unset dir
 else
-    rsync -rlptD --delete "$src_loc/" "$dest_loc/"
+    cp -rPpT "$src_loc/" "$dest_loc/"
 fi
 
 popd # back to original
