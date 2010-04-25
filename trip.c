@@ -12,7 +12,7 @@ void set_trip_conf ()
     char const* home = getenv ("HOME");
     char* conf;
     int len;
-    
+
     if (! home) return;
 
     len = strlen (rel) + strlen (home) + 2;
