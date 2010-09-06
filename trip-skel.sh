@@ -56,7 +56,7 @@ fi
 
 if expr "$src_loc" : "^.*\(tar\.gz\|tgz\|bz2\)$" >/dev/null
 then
-    dir="`tar -tf "$src_loc" | head -n 1`"
+    dir="`tar -tf "$src_loc" 2>/dev/null | head -n 1`"
     dir="`expr "$dir" : "^\([^/]*\)/.*$"`"
     if [    `tar -tf "$src_loc" | wc -l` \
         -eq `tar -tf "$src_loc" | grep -c "^$dir"` ]
