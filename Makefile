@@ -15,7 +15,7 @@ $(EXEC): $(OBJS)
 	$(CC) $(CFLAGS) $(OBJS) -o $(@)
 	chmod u=rx,g=rx,o=rx $(@)
 
-trip.o:
+trip.o: trip.c
 	$(CC) -c $(CFLAGS) $(DFLAGS) trip.c -o $(@)
 
 .PHONY: install
