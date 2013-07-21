@@ -39,7 +39,10 @@ TRIP_FS_PKG_MOUNT="mount -nvt tmpfs shm $TRIP_FS_PKG"
 TRIP_FS_PKG_UMOUNT="umount $TRIP_FS_PKG"
 
 # mount command for the TRIP_FS_UNION filesystem
-#TRIP_FS_UNION_MOUNT="mount -n $TRIP_FS_UNION"
-TRIP_FS_UNION_MOUNT="mount -nvt unionfs -o dirs=$TRIP_FS_PKG:$TRIP_FS_ROOT=ro none $TRIP_FS_UNION"
+# (Make sure you have unionfs-fuse)
+TRIP_FS_UNION_MOUNT="unionfs -o cow $TRIP_FS_PKG=RW:$TRIP_FS_ROOT=RO $TRIP_FS_UNION"
 TRIP_FS_UNION_UMOUNT="umount $TRIP_FS_UNION"
+# The below two are used if you want to use the unionfs kernel module instead of unionfs-fuse.
+#TRIP_FS_UNION_MOUNT="mount -n $TRIP_FS_UNION"
+#TRIP_FS_UNION_MOUNT="mount -nvt unionfs -o dirs=$TRIP_FS_PKG:$TRIP_FS_ROOT=ro none $TRIP_FS_UNION"
 
