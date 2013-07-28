@@ -13,6 +13,16 @@ Here's how you install (also see NOTES below):
 $  sudo make install
 $  cp -r dot-trip ~/.trip
 
+Also, ensure that the line:
+  Defaults env_keep += "HOME"
+appears in your /etc/sudoers file (edit with visudo).
+
+Also ensure the following directories exist:
+  mkdir -p /mnt/trip/lfs /mnt/trip/union /mnt/trip/pkg
+
+You need the unionfs-fuse package.
+
+
 Then, the quick way to install packages and such:
 $  trip-skel.sh <progname> <version>  <source>
 $  sudo trip -b <progname>-<version>
