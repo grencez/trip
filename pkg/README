@@ -1,0 +1,14 @@
+
+Just a few examples.
+For each directory progdir/, see README for specific information.
+The version info and such will be in progdir/support/ and the program source
+should be placed in progdir/src/, though it is omitted from this repo.
+
+The normal use case for building and installing is:
+  sudo trip -b progdir
+  sudo trip -i NAME-VERSION-ARCH.tar.gz
+
+Listing packages and uninstalling is:
+  trip -l
+  sudo trip -u NAME-VERSION-ARCH.tar.gz
+

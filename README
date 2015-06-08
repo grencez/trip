@@ -42,9 +42,6 @@ $  sudo trip -i apvlv-0.0.9.6-x86_64.tar.gz
 $  sudo trip -i apvlv-doc-0.0.9.6-x86_64.tar.gz
 
 NOTES:
-Some things don't work. Simple stuff does, since I use this as a replacement
-  for stow. I'd like to fix some when summer (2010) hits (!!! Clearly I didn't
-  fix anything that summer, but I haven't felt the need to fix anything !!!).
 Your kernel must support unionfs or aufs.
   With aufs though, you cannot have a file residing on the root partition to
   mount via loopback to TRIP_FS_PKG. It's a useful technique on low memory

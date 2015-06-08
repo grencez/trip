@@ -1,0 +1,11 @@
+
+This is what I use for the Linux kernel.
+
+1. Unpackage the source the directory "src".
+2. Copy your old .config to "src/.config".
+3. In src/, do "make menuconfig".
+4. In support/identification, set TRIP_VERSION to the kernel version.
+5. In ../, do "sudo trip -b linux-kernel".
+6. In ../, do "sudo trip -i linux-kernel-VERSION-ARCH.tar.gz".
+7. Mount /boot and run "grub2-mkconfig -o /boot/grub/grub.cfg".
+

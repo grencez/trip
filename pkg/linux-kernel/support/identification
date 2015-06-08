@@ -1,0 +1,6 @@
+TRIP_BASE_NAME="linux-kernel"
+TRIP_VERSION="4.0.5"
+TRIP_URL="http://kernel.org"
+TRIP_DESCRIPTION="The linux kernel of course."
+TRIP_NAME="linux-kernel"
+TRIP_ARCH="x86_64"

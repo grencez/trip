@@ -56,7 +56,7 @@ function trace {
   level="$1"
   shift
   if [ "$level" -le "$verbose_level" ]; then
-    case "$level" in 1) mark='X';; 2) mark='-';; 3) mark='+';; *) mark='?';; esac 
+    case "$level" in 1) mark='X';; 2) mark='-';; 3) mark='+';; *) mark='?';; esac
     echo "$mark $*"
   fi
 }
@@ -105,7 +105,7 @@ function pseudo_mktemp {
     rm -rf "$temp"
   if [ "$1" = "-f" ]; then
     touch "$temp"
-  else 
+  else
     mkdir "$temp"
   fi
 
@@ -141,7 +141,7 @@ function build_chroot {
 
   # build the package
   if [ -x "$src_dir/support/build.sh" ]
-  then 
+  then
     trace 3 "building the package"
     "$src_dir/support/build.sh"
     if [ $? != 0 ]; then
@@ -234,7 +234,8 @@ function build {
   fi
   # mount other filesystems
   mount -n --bind /dev "$TRIP_FS_UNION/dev"
-  mount -n -t devpts devpts "$TRIP_FS_UNION/dev/pts"
+  #mount -n -t devpts devpts "$TRIP_FS_UNION/dev/pts"
+  mount -n --bind /dev/pts "$TRIP_FS_UNION/dev/pts"
   mount -n -t tmpfs shm "$TRIP_FS_UNION/dev/shm"
   mount -n -t proc proc "$TRIP_FS_UNION/proc"
   mount -n -t sysfs sysfs "$TRIP_FS_UNION/sys"
@@ -251,7 +252,7 @@ function build {
   fi
 
   ret=$?
-  
+
   # umount temporary filesystems
   umount "$TRIP_FS_UNION$TRIP_TMPDIR" 2> /dev/null
   umount "$TRIP_FS_UNION/proc" 2> /dev/null
@@ -260,7 +261,7 @@ function build {
   umount "$TRIP_FS_UNION/dev/pts" 2> /dev/null
   umount "$TRIP_FS_UNION/dev" 2> /dev/null
   umount "$TRIP_FS_UNION" 2> /dev/null
-  
+
   # test the exit status of chroot
   if [ $ret != 0 ]; then
     trace 1 "build failed"
@@ -270,7 +271,7 @@ function build {
 
   # remove the local copy of the package
   rm -rf "$TRIP_TMPDIR/trip-pkg"
-  
+
   # list deleted, modified and added files
   trace 3 "examining installed files"
   install_status
@@ -313,7 +314,7 @@ function build {
                                         -regex "\./lib/.*\.la" -o \
                                         -regex "\./usr/include/.*" -o \
                                         -regex "\./usr/lib/pkgconfig/.*"
-                                        
+
   build_package "$tmp_pkg_files" "-doc" -regex "\./usr/share/doc/.*" -o \
                                         -regex "\./usr/share/man/.*" -o \
                                         -regex "\./usr/share/info/.*"
@@ -324,7 +325,7 @@ function build {
       build_package "$tmp_pkg_files" "-locale-$locale" -regex "\./usr/share/locale/$locale.*"
     done
   )
-  
+
   build_package "$tmp_pkg_files" ""
 
   # finally unmount the package filesystem
@@ -399,10 +400,10 @@ function install_status {
     return 1
   fi
 
-  
+
   # compute the length of the pkg path prefix, including a trailing "/"
   let "pkg_length=${#TRIP_FS_PKG}+1"
-  
+
   # find deleted directories
   find "$TRIP_FS_PKG" -name ".wh.__dir_opaque" |
   (
@@ -543,13 +544,13 @@ function install {
   else
     trace 3 "ignoring potential file conflicts"
   fi
-  
+
   # create the package entry in the TRIP database, and copy some files
   trace 3 "creating package database entry"
   if mkdir -p "$db_entry" 2> /dev/null; then
     # save the list of installed files
     gzip -dc "$bin_pkg" | tar --extract --to-stdout "$pkg_name/files.tar" | tar --list > "$db_entry/files"
-    
+
     # save the detailled list of installed files (tar output may differ according to locale)
     gzip -dc "$bin_pkg" | tar --extract --to-stdout "$pkg_name/files.tar" | tar --list --verbose > "$db_entry/files-detail"
 
@@ -580,7 +581,7 @@ function install {
       return 1
     fi
   fi
-  
+
   # run pre install script
   if [ -x "$tmp_install_dir/$pkg_name/support/pre_install.sh" ]; then
     trace 3 "running pre install script"
@@ -591,7 +592,7 @@ function install {
       return 1
     fi
   fi
-  
+
   # needed to prevent symbols to be resolved in newly installed libraries. instead bind all symbols now, at start of execution of tar
   # this is especially needed for update of glibc
   export LD_BIND_NOW=yes
@@ -610,7 +611,7 @@ function install {
     return 1
   fi
 
-  
+
   # run post install script
   if [ -x "$tmp_install_dir/$pkg_name/support/post_install.sh" ]; then
     trace 3 "running post install script"
@@ -631,7 +632,7 @@ function install {
 
   # finally store the package name in the list of installed package
   echo $pkg_name >> "$TRIP_DB/list"
-  
+
   trace 3 "the package \"$pkg_name\" has been successfully installed"
   $TRIP_FS_ROOT_UMOUNT
 }
@@ -670,7 +671,7 @@ function uninstall {
       return 1
     fi
   fi
-  
+
   # run pre uninstall script
   if [ -x "$TRIP_DB/$pkg_name/pre_uninstall.sh" ]; then
     trace 3 "running pre uninstall script"
@@ -680,11 +681,11 @@ function uninstall {
       return 1
     fi
   fi
-  
+
   # remove files
   trace 3 "removing files"
   remove_files "$db_entry/files"
-  
+
   # run post uninstall script
   if [ -x "$TRIP_DB/$pkg_name/post_uninstall.sh" ]; then
     trace 3 "running post uninstall script"
@@ -693,7 +694,7 @@ function uninstall {
       trace 1 "post uninstall script failed, the package may have been partially uninstalled"
     fi
   fi
-  
+
   # run common post uninstall script
   if [ -x "$config_dir/post_uninstall.sh" ]; then
     trace 3 "running common post uninstall script"
@@ -702,7 +703,7 @@ function uninstall {
       trace 1 "common post uninstall script failed, the package may have been partially uninstalled"
     fi
   fi
-  
+
   # remove the package from the database, and from the package list
   trace 3 "removing the package from the database"
   rm -rf "$db_entry"
@@ -749,7 +750,7 @@ function remove_files {
 
 # ask the user a few questions, and create a source directory, suitable for invocation of trip --build
 function wizard {
-  
+
   # meta infos
   default_arch=`uname -m`
   until echo -n "Package name : "; read name; [ "$name" ]; do echo "  please enter a valid package name"; done
@@ -767,8 +768,8 @@ function wizard {
   # source files
   i=0
   while echo -n "Source file #$i (leave it blank to stop) : "; read files[$i]; [ "${files[$i]}" ];do let i++; done
-  
-  # build.sh and install.sh scripts. 
+
+  # build.sh and install.sh scripts.
   # - a default script is proposed
   # - if not modified by the user, remove it
   # - if modified store it
@@ -812,7 +813,7 @@ function wizard {
 
   # now that all informations are gathered construct a src directory
   mkdir -p "$name-$version/"{src,support}
-  
+
   cat > "$name-$version/support/identification" <<- EOF
 	TRIP_NAME="$name"
 	TRIP_VERSION="$version"
@@ -862,7 +863,7 @@ function list {
       files=files
       verbose=""
     fi
-    
+
     if [ -f "$TRIP_DB/$1"*"/$files" ]; then
       # argument is an installed package
       cat "$TRIP_DB/$1"*"/$files"
@@ -925,7 +926,7 @@ function upgrade_bd_0_1_0_2 {
   cd "$TRIP_DB" || { trace 1 "unable to cd into $TRIP_DB"; exit 1; }
 
   for i in *
-  do 
+  do
     if [ -d "$i" ] && [ -f "$i/content" ]; then
       cd $i
       mv content content.old
@@ -949,7 +950,7 @@ function upgrade_bd_0_2_0_3 {
   cd "$TRIP_DB" || { trace 1 "unable to cd into $TRIP_DB"; exit 1; }
 
   for i in *
-  do 
+  do
     if [ -d "$i" ] && [ -f "$i/content" ]; then
       cd $i
       mv content files-detail
@@ -968,13 +969,13 @@ function rebuild {
     trace 1 "the package \"$pkg_name\" does not seem to be valid"
     exit 1
   fi
-  
+
   mkdir -p "$pkg_name/support" || { trace 1 "unable to create a temporary directory"; exit 1; }
-  
+
   [ $verbose_level = 3 ] && verbose="--verbose"
   trace 3 "creating an archive with the files belonging to the package..."
   tar --directory="$TRIP_INSTALL_DIR" --create --files-from "$files" $verbose > "$pkg_name/files.tar"
-  
+
   trace 3 "copying support files..."
   for i in "$TRIP_DB/$pkg_name/identification" "$pkg_name/support" "$TRIP_DB/$pkg_name/"{pre,post}_{un,}install.sh
   do
@@ -1004,7 +1005,7 @@ while [ "$1" ]; do
       arg1="$2"
       shift
       ;;
-      
+
     --uninstall|-u)
       mode=uninstall
       arg1="$2"
@@ -1022,7 +1023,7 @@ while [ "$1" ]; do
       arg1="$2"
       shift
       ;;
-    
+
     --wizard|-w)
       mode=wizard
       ;;
@@ -1038,7 +1039,7 @@ while [ "$1" ]; do
       arg1="$2"
       shift
       ;;
-    
+
     --batch-build-install|-bbi)
       mode=batch_build_install
       arg1="$2"
@@ -1078,12 +1079,12 @@ while [ "$1" ]; do
       config_dir="$2"
       shift
       ;;
-      
+
     --trip-path|-t)
       trip_path="$2"
       shift
       ;;
-      
+
     --help|-h)
       mode=usage
       ;;
@@ -1091,8 +1092,8 @@ while [ "$1" ]; do
     "")
       break
       ;;
-      
-    *) 
+
+    *)
       trace 1 "unknown parameter \"$1\""
       usage
       exit 2
