@@ -29,11 +29,6 @@ trap clean 2 15
 
 # some mandatory default values
 TRIP_CONFIG_DIR=${TRIP_CONFIG_DIR:-/etc/trip}
-if [ ! -d "$TRIP_CONFIG_DIR" ]; then
-    trace 3 "\$TRIP_CONFIG_DIR not set, it is now $TRIP_CONFIG_DIR"
-  TRIP_CONFIG_DIR=/trip/conf
-fi
-
 
 # delete temporary files and directories, called on SIGINT and SIGTERM
 function clean {
@@ -851,8 +846,10 @@ function wizard {
 
 
 # list already installed packages, or files belonging to a package
-function list {
-  if [ -z "$1" ]; then
+function list ()
+{
+  pkg="$1"
+  if [ -z "$pkg" ]; then
     # no argument : list of installed packages
     cat "$TRIP_DB/list"
   else
@@ -864,16 +861,24 @@ function list {
       verbose=""
     fi
 
-    if [ -f "$TRIP_DB/$1"*"/$files" ]; then
+
+    path=""
+    if ! echo "$pkg" | grep -q '^[./]'
+    then
       # argument is an installed package
-      cat "$TRIP_DB/$1"*"/$files"
-    else
-      if [ -f "$1" ]; then
-        # argument is a file
-        gzip -dc "$1" | tar --extract --to-stdout --wildcards "*files.tar" | tar --list $verbose
-      else
-        trace 1 "no such package \"$1\" (nor installed, neither a file)"
+      path=$(ls -d "$TRIP_DB/$pkg"*"/$files" | tail -n 1)
+      if [ ! -f "$path" ]; then
+        path=""
       fi
+    fi
+
+    if [ -n "$path" ]; then
+      cat "$path"
+    elif [ -f "$pkg" ]; then
+      # argument is a file
+      gzip -dc "$pkg" | tar --extract --to-stdout --wildcards "*files.tar" | tar --list $verbose
+    else
+      trace 1 "no such package \"$pkg\" (nor installed, neither a file)"
     fi
   fi
 }
