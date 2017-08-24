@@ -34,9 +34,14 @@ TRIP_FS_ROOT_MOUNT="mount -nv --bind / $TRIP_FS_ROOT"
 TRIP_FS_ROOT_UMOUNT="umount $TRIP_FS_ROOT"
 
 # mount command for the TRIP_FS_PKG filesystem
-#TRIP_FS_PKG_MOUNT="mount -n $TRIP_FS_PKG"
 TRIP_FS_PKG_MOUNT="mount -nvt tmpfs shm $TRIP_FS_PKG"
 TRIP_FS_PKG_UMOUNT="umount $TRIP_FS_PKG"
+# alternative mount command for TRIP_FS_PKG with loopback file
+#TRIP_FS_PKG_MOUNT="mount -n -o loop /path/to/loopback_file $TRIP_FS_PKG"
+#TRIP_FS_PKG_UMOUNT="umount $TRIP_FS_PKG"
+# alternative mount command for TRIP_FS_PKG with partition
+#TRIP_FS_PKG_MOUNT="mount -n $TRIP_FS_PKG"
+#TRIP_FS_PKG_UMOUNT="umount $TRIP_FS_PKG"
 
 # mount command for the TRIP_FS_UNION filesystem
 # (Make sure you have unionfs-fuse)
@@ -45,4 +50,3 @@ TRIP_FS_UNION_UMOUNT="umount $TRIP_FS_UNION"
 # The below two are used if you want to use the unionfs kernel module instead of unionfs-fuse.
 #TRIP_FS_UNION_MOUNT="mount -n $TRIP_FS_UNION"
 #TRIP_FS_UNION_MOUNT="mount -nvt unionfs -o dirs=$TRIP_FS_PKG:$TRIP_FS_ROOT=ro none $TRIP_FS_UNION"
-
